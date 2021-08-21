@@ -32,10 +32,24 @@ def log_contains_simmilar(log, val):
             return True 
     return False
 
+def is_simmilar(val1, val2):
+    return abs(float(val1) - float(val2)) < time_delta_for_single_box
+
+def add_value_to_log(arr, val):
+    contains_simmilar = False
+    for i in range(len(arr)):
+        if is_simmilar(arr[i][0], val[0]):
+            print("added")
+            contains_simmilar = True
+            arr[i].append(val)
+
+    if not contains_simmilar:
+        arr.append(list(val[0]))
+        print("created")
 
 def log_into_file(val, filename):
     with open(filename, 'a') as the_file:
-        the_file.write(val)
+        the_file.write(val[0])
 
 
 class Frame():
@@ -128,9 +142,14 @@ def control_box(left, lower, right, up, dx, dy, frame1, frame2, box_id, millis, 
 
     if (not np.isnan(curr_dx) and curr_dx > 4) or (not np.isnan(curr_dy) and curr_dy > 4):
         out = str(int(millis/1000))
-        if not log_contains_simmilar(log_array, out):
-            log_array.append(out)
-            log_into_file(str(box_id) + " " + str(out) + " seconds" + "\n", "log.txt")
+        
+        add_value_to_log(log_array, (out, int(math.sqrt(curr_dx*curr_dx + curr_dy*curr_dy))))
+
+
+        #if not log_contains_simmilar(log_array, out):
+        #    log_array.append(out)
+        #    log_into_file(str(box_id) + " " + str(out) + " seconds" + "\n", "log.txt")
+        
         print(box_id, log_array)
 
 class Application():
