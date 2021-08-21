@@ -32,24 +32,10 @@ def log_contains_simmilar(log, val):
             return True 
     return False
 
-def is_simmilar(val1, val2):
-    return abs(float(val1) - float(val2)) < time_delta_for_single_box
-
-def add_value_to_log(arr, val):
-    contains_simmilar = False
-    for i in range(len(arr)):
-        if is_simmilar(arr[i][0], val[0]):
-            print("added")
-            contains_simmilar = True
-            arr[i].append(val)
-
-    if not contains_simmilar:
-        arr.append(list(val[0]))
-        print("created")
 
 def log_into_file(val, filename):
     with open(filename, 'a') as the_file:
-        the_file.write(val[0])
+        the_file.write(val)
 
 
 class Frame():
@@ -74,16 +60,16 @@ class Frame():
 
 def compareTwoFrame(frame1, frame2):
     bf = cv.BFMatcher(cv.NORM_HAMMING) 
-    
+
     perfectMatches = []
     kp1 = []
     kp2 = []
     #frame1.showFrame()
     #frame2.showFrame()
-    
+
     features1 = frame1.getFeaturesPoints() 
     features2 = frame2.getFeaturesPoints() 
-    
+
     if features1[1] is None or features2[1] is None:
         return perfectMatches, kp1, kp2
 
@@ -98,7 +84,7 @@ def compareTwoFrame(frame1, frame2):
 
     kp1 = features1[0]        
     kp2 = features2[0]
-        
+
     for mat in retdescs:
         img1_idx = mat.queryIdx
         img2_idx = mat.trainIdx
@@ -125,7 +111,7 @@ def checkMotionInFeturesBox(perfectMatches, kp1, kp2):
             (x1, y1) = kp1[img1_idx].pt
         if img2_idx < len(kp2):
             (x2, y2) = kp2[img2_idx].pt
-            
+
         #if x1 > 0 and x2 < 0:
         motionFeaturesDx.append(x2 - x1)
         motionFeaturesDy.append(y2 - y1)
@@ -137,20 +123,17 @@ def checkMotionInFeturesBox(perfectMatches, kp1, kp2):
 def control_box(left, lower, right, up, dx, dy, frame1, frame2, box_id, millis, log_array):
     f1 = Frame(frame1[up:lower, left:right])
     f2 = Frame(frame2[up:lower, left:right])
+    f1.showFrame()
     pm, kp1, kp2 = compareTwoFrame(f1, f2)
     curr_dx, curr_dy = checkMotionInFeturesBox(pm, kp1, kp2)
-
-    if (not np.isnan(curr_dx) and curr_dx > 4) or (not np.isnan(curr_dy) and curr_dy > 4):
+    if (not np.isnan(curr_dx) and curr_dx > dx) and (not np.isnan(curr_dy) and curr_dy >= dy):
         out = str(int(millis/1000))
+        if not log_contains_simmilar(log_array, out):
+            log_array.append(out)
+            print(str(box_id) + " " + str(out) + " seconds" + "\n", curr_dx, curr_dy)
+            #log_into_file(str(box_id) + " " + str(out) + " seconds" + "\n", "log.txt")
         
-        add_value_to_log(log_array, (out, int(math.sqrt(curr_dx*curr_dx + curr_dy*curr_dy))))
-
-
-        #if not log_contains_simmilar(log_array, out):
-        #    log_array.append(out)
-        #    log_into_file(str(box_id) + " " + str(out) + " seconds" + "\n", "log.txt")
-        
-        print(box_id, log_array)
+        #print(box_id, log_array)
 
 class Application():
     def __init__(self, videoPath):
@@ -166,7 +149,7 @@ class Application():
         up1 = 190 
         lower1 = 330
         cap = cv.VideoCapture(self.videoPath)
-        
+
 
         #чуть подвинуть налево?
         left2 = left1 - 800
@@ -174,23 +157,23 @@ class Application():
         up2 = up1
         lower2 = lower1
 
-        left3 = left1 + 500
-        right3 = right1 + 500
+        left3 = left1 + 300
+        right3 = right1 + 300
         up3 = up1 + 160
         lower3 = lower1 + 160
-        
+
         left4 = left3
         right4 = right3
         up4 = up3 + 180
         lower4 = lower3 + 180
-        
+
 
         first_box_log_array = []
         second_box_log_array = []
         third_box_log_array = []
         four_box_log_array = []
-        
-        
+
+
         if cap.isOpened():
             global prevFrame
             prevFrameRes, prevFrame = cap.read()
@@ -205,12 +188,14 @@ class Application():
         initPackets = True
         while(cap.isOpened()):
             frameCounter += 1
-        
+
             ret, frame = cap.read()
+            if frame is None:
+                break
             frameInit = frame.copy()
             self.currentFrame = frameInit.copy()
             if ret == True and frameCounter % frameRate == 0:
-                
+
                 if init != True:
                     millis = cap.get(0)
                     '''
@@ -226,15 +211,15 @@ class Application():
                     t4.start()
                     #matcher.checkMotionInFeturesBox()
 '''
-                    control_box(left1, lower1, right1, up1, 10, 10, prevFrame.copy(), frame.copy(), "first line", millis, first_box_log_array)
-                    control_box(left2, lower2, right2, up2, 10, 10, prevFrame.copy(), frame.copy(), "second line", millis, second_box_log_array)
-                    #control_box(left3, lower3, right3, up3, 10, 10, prevFrame.copy(), frame.copy(), "first line under", millis, third_box_log_array)
-                    #control_box(left4, lower4, right4, up4, 10, 10, prevFrame.copy(), frame.copy(), "second line under", millis, four_box_log_array)
+                    control_box(left1, lower1, right1, up1, 4, 4, prevFrame.copy(), frame.copy(), "first line", millis, first_box_log_array)
+                    control_box(left2, lower2, right2, up2, 4, 4, prevFrame.copy(), frame.copy(), "second line", millis, second_box_log_array)
+                    control_box(left3, lower3, right3, up3, 2, -2, prevFrame.copy(), frame.copy(), "first line under", millis, third_box_log_array)
+                    control_box(left4, lower4, right4, up4, 2, -2, prevFrame.copy(), frame.copy(), "second line under", millis, four_box_log_array)
                     frame = cv.rectangle(frame, (left1, lower1), (right1, up1), (255,0,255), 3)
                     frame = cv.rectangle(frame, (left2, lower2), (right2, up2), (255,0,255), 3)
                     frame = cv.rectangle(frame, (left3, lower3), (right3, up3), (255,0,255), 3)
                     frame = cv.rectangle(frame, (left4, lower4), (right4, up4), (255,0,255), 3)
-                    
+
                     self.currentFrame = frame
                     #cv.line(frame, (int(sumLen), 0), (int(sumLen), 1000), (255, 0, 255), 2)
                     cv.imshow("mat", self.currentFrame)
@@ -247,7 +232,7 @@ class Application():
 
                 if cv.waitKey(1) & 0xFF == ord('q'):
                     break
-            
+
             elif ret == True:
                 continue
             else:
@@ -257,4 +242,4 @@ class Application():
 
 
 # УКАЗАТъ ПРАВИЛЬНЫЙ ПУТЬ ДО ВИДЕО
-Application("18391-video.mp4").run()
+Application("rightup.mp4").run() 
