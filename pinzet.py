@@ -17,6 +17,7 @@ import threading
 import _thread as thread
 
 frameRate = 4
+deltaBetweenControl = 10
 
 leftFeaturesBoarder = 1000
 rightFeaturesBoarder = 1470
@@ -46,6 +47,19 @@ def add_value_to_log(arr, val):
     if not contains_simmilar:
         arr.append(list(val[0]))
         print("created")
+
+
+was_printed1 = []
+
+def append_value_to_log(arr, val):
+    if not log_contains_simmilar(was_printed1, val):
+        arr.append(val)
+
+#    if float(val) > float(arr[-2]) + 12:
+#        print(val)
+#        was_printed1.append(val)
+    print(arr)
+
 
 def log_into_file(val, filename):
     with open(filename, 'a') as the_file:
@@ -134,23 +148,45 @@ def checkMotionInFeturesBox(perfectMatches, kp1, kp2):
     return np.median(motionFeaturesDx), np.median(motionFeaturesDy)
 
 
+def control_log(log_array, millis, msg, dist = 9, n = 5):
+    if len(log_array) == 0:
+        return
+    if millis/1000 - float(log_array[-1]) < deltaBetweenControl:
+        return
+    start = 0
+    prev = float(log_array[0])
+    length = 0
+    for i in log_array:
+        if (float(i) - prev) > dist:
+            #print("big dist ", (float(i) - prev), dist)
+            length += 1
+            break
+        length += 1
+        prev = float(i)
+    if length > 5:
+        print(msg, log_array[start:length]) 
+    del log_array[start:length]
+
 def control_box(left, lower, right, up, dx, dy, frame1, frame2, box_id, millis, log_array):
     f1 = Frame(frame1[up:lower, left:right])
     f2 = Frame(frame2[up:lower, left:right])
+    #f2.showFrame()
     pm, kp1, kp2 = compareTwoFrame(f1, f2)
     curr_dx, curr_dy = checkMotionInFeturesBox(pm, kp1, kp2)
-
-    if (not np.isnan(curr_dx) and curr_dx > 4) or (not np.isnan(curr_dy) and curr_dy > 4):
+    if (not np.isnan(curr_dx) and curr_dx > 3) or (not np.isnan(curr_dy) and curr_dy > 4):
+        
         out = str(int(millis/1000))
         
-        add_value_to_log(log_array, (out, int(math.sqrt(curr_dx*curr_dx + curr_dy*curr_dy))))
-
-
-        #if not log_contains_simmilar(log_array, out):
-        #    log_array.append(out)
-        #    log_into_file(str(box_id) + " " + str(out) + " seconds" + "\n", "log.txt")
+        #add_value_to_log(log_array, (out, int(math.sqrt(curr_dx*curr_dx + curr_dy*curr_dy))))
+        #append_value_to_log(log_array, out)
+        log_array.append(out)
+        if not log_contains_simmilar(log_array, out):
+            log_array.append(out)
+            log_into_file(str(box_id) + " " + str(out) + " seconds" + "\n", "log.txt")
         
-        print(box_id, log_array)
+        #print(str(box_id) + " " + str(out) + " seconds" + "\n")
+        #print(log_array, millis)
+    control_log(log_array, millis, box_id)
 
 class Application():
     def __init__(self, videoPath):
@@ -174,8 +210,8 @@ class Application():
         up2 = up1
         lower2 = lower1
 
-        left3 = left1 + 500
-        right3 = right1 + 500
+        left3 = left1 + 400
+        right3 = right1 + 400
         up3 = up1 + 160
         lower3 = lower1 + 160
         
@@ -207,6 +243,8 @@ class Application():
             frameCounter += 1
         
             ret, frame = cap.read()
+            if frame is None:
+                break
             frameInit = frame.copy()
             self.currentFrame = frameInit.copy()
             if ret == True and frameCounter % frameRate == 0:
@@ -227,9 +265,10 @@ class Application():
                     #matcher.checkMotionInFeturesBox()
 '''
                     control_box(left1, lower1, right1, up1, 10, 10, prevFrame.copy(), frame.copy(), "first line", millis, first_box_log_array)
+                    
                     control_box(left2, lower2, right2, up2, 10, 10, prevFrame.copy(), frame.copy(), "second line", millis, second_box_log_array)
-                    #control_box(left3, lower3, right3, up3, 10, 10, prevFrame.copy(), frame.copy(), "first line under", millis, third_box_log_array)
-                    #control_box(left4, lower4, right4, up4, 10, 10, prevFrame.copy(), frame.copy(), "second line under", millis, four_box_log_array)
+                    control_box(left3, lower3, right3, up3, 3, 0, prevFrame.copy(), frame.copy(), "first line under", millis, third_box_log_array)
+                    control_box(left4, lower4, right4, up4, 10, 10, prevFrame.copy(), frame.copy(), "second line under", millis, four_box_log_array)
                     frame = cv.rectangle(frame, (left1, lower1), (right1, up1), (255,0,255), 3)
                     frame = cv.rectangle(frame, (left2, lower2), (right2, up2), (255,0,255), 3)
                     frame = cv.rectangle(frame, (left3, lower3), (right3, up3), (255,0,255), 3)
