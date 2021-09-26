@@ -8,16 +8,18 @@ import statistics
 import datetime
 
 import functional
-
+from loger import staticLoger
 
 frameRate = 4
 deltaBetweenControl = 2
+
 
 class ControlState():
     def __init__(self):
         self.time_list = []
         self.last_milliseconds_event_time = 0
         #self.propriet_vector_list = []
+
 
 class Frame():
     def __init__(self, img):
